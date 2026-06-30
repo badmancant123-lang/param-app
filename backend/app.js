@@ -281,26 +281,37 @@ app.put("/api/params/:name", async (req, res) => {
 });
 
 
-// Live frequency + accumulator status, read directly from the frequencyControl node
-// (these live outside the UserInput struct, so they are not in /api/params). The two
-// switch thresholds come from UserInput and drive the chart's guide lines.
-app.get("/api/frequency", async (_req, res) => {
+// Live data for the charts page: frequency + both accumulators in one batch read.
+// frequencyControl / lowAccumulator / highAccumulator live under MAIN; the threshold
+// setpoints live in the UserInput struct (BASE_PATH).
+app.get("/api/monitor", async (_req, res) => {
   try {
     if (!session) return res.status(503).json({ error: "OPC UA not connected" });
 
+    const MAIN = FREQ_BASE.replace(/\/[^/]+$/, "");   // parent of frequencyControl → .../MAIN
+    const ui   = `${NS_PREFIX};s=${BASE_PATH}`;       // UserInput struct (threshold setpoints)
+
     const ids = [
-      `${NS_PREFIX};s=${FREQ_BASE}/_frequency`,
-      `${NS_PREFIX};s=${FREQ_BASE}/_highAccumulatorActive`,
-      `${NS_PREFIX};s=${BASE_PATH}/_switchFreqHighThresh`,
-      `${NS_PREFIX};s=${BASE_PATH}/_switchFreqLowThresh`
+      `${NS_PREFIX};s=${FREQ_BASE}/_frequency`,                  // 0
+      `${NS_PREFIX};s=${FREQ_BASE}/_highAccumulatorActive`,      // 1
+      `${ui}/_switchFreqHighThresh`,                             // 2
+      `${ui}/_switchFreqLowThresh`,                              // 3
+      `${NS_PREFIX};s=${MAIN}/lowAccumulator/_pressure`,         // 4
+      `${ui}/_lowAccHighThresh`,                                 // 5
+      `${ui}/_lowAccLowThresh`,                                  // 6
+      `${NS_PREFIX};s=${MAIN}/lowAccumulator/_solenoidSwitch`,   // 7
+      `${NS_PREFIX};s=${MAIN}/highAccumulator/_pressure`,        // 8
+      `${ui}/_highAccHighThresh`,                                // 9
+      `${ui}/_highAccLowThresh`,                                 // 10
+      `${NS_PREFIX};s=${MAIN}/highAccumulator/_solenoidSwitch`   // 11
     ];
     const dv = await session.read(ids.map(nodeId => ({ nodeId, attributeId: AttributeIds.Value })));
+    const v = i => dv[i].value?.value ?? null;
 
     res.json({
-      frequency:             dv[0].value?.value ?? null,
-      highAccumulatorActive: dv[1].value?.value ?? null,
-      switchFreqHighThresh:  dv[2].value?.value ?? null,
-      switchFreqLowThresh:   dv[3].value?.value ?? null
+      frequency: { value: v(0), active: v(1) === true, hi: v(2), lo: v(3)  },
+      lowAcc:    { value: v(4), hi: v(5),  lo: v(6),  valve: v(7)  === true },
+      highAcc:   { value: v(8), hi: v(9),  lo: v(10), valve: v(11) === true }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

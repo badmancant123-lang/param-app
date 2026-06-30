@@ -184,8 +184,7 @@
       padding: 20px;
     }
 
-    .query-panel h2,
-    .freq-panel h2 {
+    .query-panel h2 {
       font-size: 14px;
       letter-spacing: 1px;
       color: #7dd3fc;
@@ -282,73 +281,47 @@
     .fetch-btn:hover { background: #16a34a; }
     .fetch-btn:active { transform: scale(0.98); }
 
-    /* --- Frequency Monitor --- */
-    .freq-panel { padding: 20px; }
+    .header-right { display: flex; align-items: center; gap: 20px; }
+    .tabs { display: flex; gap: 8px; }
+    .tab-btn { background: transparent; border: 1px solid #1f2a3a; color: #94a3b8; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+    .tab-btn:hover { background: rgba(125,211,252,0.06); }
+    .tab-btn.active { color: #7dd3fc; border-color: #7dd3fc; background: rgba(125,211,252,0.10); }
 
-    .freq-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .freq-readout { display: flex; align-items: baseline; gap: 12px; }
-    .freq-readout .lbl {
-      font-size: 12px; color: #94a3b8;
-      text-transform: uppercase; letter-spacing: 1px;
-    }
-    .freq-readout .val {
-      font-family: "Consolas", monospace;
-      font-size: 40px; font-weight: 700; line-height: 1;
-      color: #22d3ee;
-    }
-
-    .freq-status {
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 14px; font-weight: 600;
-      border: 1px solid;
-    }
-    .freq-status.high { background: rgba(34,211,238,0.08);  border-color: #22d3ee; color: #67e8f9; }
-    .freq-status.low  { background: rgba(167,139,250,0.10); border-color: #a78bfa; color: #c4b5fd; }
-    .freq-status.idle { background: rgba(75,85,99,0.10);    border-color: #374151; color: #6b7280; }
-
-    canvas#freqChart {
-      width: 100%;
-      height: 260px;
-      display: block;
-      margin-top: 16px;
-      background: #0b0f14;
-      border: 1px solid #1f2a3a;
-      border-radius: 8px;
-    }
+    /* --- Charts view --- */
+    #view-charts .panel { padding: 20px; }
+    #view-charts h2 { font-size: 14px; letter-spacing: 1px; color: #7dd3fc; text-transform: uppercase; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #1f2a3a; }
+    .chart-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .chart-readout { display: flex; align-items: baseline; gap: 12px; }
+    .chart-readout .lbl { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+    .chart-readout .val { font-family: "Consolas", monospace; font-size: 36px; font-weight: 700; line-height: 1; color: #22d3ee; }
+    .chart-status { padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid; }
+    .chart-status.high { background: rgba(34,211,238,.08);  border-color: #22d3ee; color: #67e8f9; }
+    .chart-status.low  { background: rgba(167,139,250,.10); border-color: #a78bfa; color: #c4b5fd; }
+    .chart-status.on   { background: rgba(34,197,94,.10);   border-color: #22c55e; color: #86efac; }
+    .chart-status.idle { background: rgba(75,85,99,.10);    border-color: #374151; color: #6b7280; }
+    #view-charts canvas { width: 100%; height: 230px; display: block; margin-top: 14px; background: #0b0f14; border: 1px solid #1f2a3a; border-radius: 8px; }
   </style>
 </head>
 
 <body>
 
 <header>
-  <h1>CtrlX CORE — Parameter Editor</h1>
-  <div class="status">
-    <span class="dot" id="dot"></span>
-    <span id="status-text">Connecting…</span>
+  <h1>CtrlX CORE — HMI</h1>
+  <div class="header-right">
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-params" onclick="showTab('params')">Parameters</button>
+      <button class="tab-btn"        id="tab-charts" onclick="showTab('charts')">Charts</button>
+    </div>
+    <div class="status">
+      <span class="dot" id="dot"></span>
+      <span id="status-text">Connecting…</span>
+    </div>
   </div>
 </header>
 
 <div class="container">
 
-  <div class="panel freq-panel">
-    <h2>Frequency Monitor</h2>
-    <div class="freq-head">
-      <div class="freq-readout">
-        <span class="lbl">Live Frequency</span>
-        <span class="val" id="freqValue">—</span>
-      </div>
-      <div class="freq-status idle" id="freqStatus">Waiting for data…</div>
-    </div>
-    <canvas id="freqChart"></canvas>
-  </div>
+  <div id="view-params">
 
   <div class="panel">
     <table id="param-table">
@@ -400,12 +373,41 @@
     <button class="fetch-btn" onclick="executeDataQuery()">Fetch Data</button>
   </div>
 
+  </div><!-- /view-params -->
+
+  <div id="view-charts" hidden>
+    <div class="panel">
+      <h2>Frequency Monitor</h2>
+      <div class="chart-head">
+        <div class="chart-readout"><span class="lbl">Live Frequency</span><span class="val" id="valFreq">—</span></div>
+        <div class="chart-status idle" id="stFreq">Waiting for data…</div>
+      </div>
+      <canvas id="chFreq"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Low Accumulator</h2>
+      <div class="chart-head">
+        <div class="chart-readout"><span class="lbl">Live Pressure</span><span class="val" id="valLow">—</span></div>
+        <div class="chart-status idle" id="stLow">Waiting for data…</div>
+      </div>
+      <canvas id="chLow"></canvas>
+    </div>
+    <div class="panel">
+      <h2>High Accumulator</h2>
+      <div class="chart-head">
+        <div class="chart-readout"><span class="lbl">Live Pressure</span><span class="val" id="valHigh">—</span></div>
+        <div class="chart-status idle" id="stHigh">Waiting for data…</div>
+      </div>
+      <canvas id="chHigh"></canvas>
+    </div>
+  </div>
+
 </div>
 
 <script>
   // Derive the API base from where this page is served, so calls work behind the ctrlX
-  // reverse proxy (/hmi/api/...) and at the root locally (/api/...).
-  const API     = window.location.pathname.replace(/\/$/, "");
+  // reverse proxy (/hmi/...) and at the root locally (/...), including sub-pages.
+  const API     = window.location.pathname.replace(/\/[^/]*\.[^/]*$/, "").replace(/\/$/, "");
   const POLL_MS = 2000;
 
   const DT       = { Boolean: 1, Int16: 4, UInt16: 5, Int32: 6, UInt32: 7, Int64: 8, UInt64: 9, Float: 10, Double: 11, String: 12 };
@@ -433,7 +435,11 @@
       return `<input id="in-${name}" type="text" value="${String(value ?? "")}">`;
     }
     const step = INT_TYPES.has(dataType) ? "1" : "any";
-    return `<input id="in-${name}" type="number" step="${step}" value="${value ?? 0}">`;
+    let num = value ?? 0;
+    // Float (32-bit) values arrive as their full double expansion (e.g. 2.2999999523162);
+    // round to float32's ~7 significant digits so the input shows a clean 2.3.
+    if (dataType === DT.Float && typeof num === "number") num = Number(num.toPrecision(7));
+    return `<input id="in-${name}" type="number" step="${step}" value="${num}">`;
   }
 
   function renderTable(params) {
@@ -539,6 +545,17 @@
 
   // ── InfluxDB Query Logic ────────────────────────────────────────────────────
 
+  // Pre-fill the query range: start = 5 min ago, end = now (local time, YYYY-MM-DDTHH:mm).
+  function toLocalInput(d) {
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  (function initQueryTimes() {
+    const now = new Date();
+    document.getElementById("endTime").value   = toLocalInput(now);
+    document.getElementById("startTime").value = toLocalInput(new Date(now.getTime() - 5 * 60 * 1000));
+  })();
+
   async function executeDataQuery() {
     // 1. Grab checked boxes instead of select options
     const checkboxes = document.querySelectorAll('input[name="measurement"]:checked');
@@ -623,166 +640,123 @@
  
             
 
-  // ── Frequency Monitor (live readout + status + canvas strip chart) ───────────
+  // ── Charts view: Frequency + both accumulators (one /api/monitor poll) ───────
+  const MON_POLL_MS = 100;     // target 10 Hz
+  const WINDOW_MS   = 30000;   // 30 s rolling window
+  const MAX_SAMPLES = 5000;
 
-  const FREQ_POLL_MS    = 100;          // 10 Hz — smooth without hammering the PLC
-  const FREQ_MAX_POINTS = 300;          // rolling window (~30 s at 10 Hz)
-  const samples = [];                   // [{ f: number|null, a: boolean }]
-  let   freqThresh = { hi: null, lo: null };
+  // One reusable time-series chart: live value line + High/Low threshold lines +
+  // a boolean signal drawn as a filled square-wave on a secondary axis.
+  function makeChart({ canvasId, valueId, statusId, lineColor, boolHigh, boolLow, read, status }) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext("2d");
+    const valEl = document.getElementById(valueId);
+    const stEl  = document.getElementById(statusId);
+    const samples = [];                 // [{ t, v: number|null, b: boolean }]
+    let hi = null, lo = null;
 
-  const freqCanvas = document.getElementById("freqChart");
-  const freqCtx    = freqCanvas.getContext("2d");
-
-  async function pollFrequency() {
-    try {
-      const res = await fetch(`${API}/api/frequency`);
-      const d   = await res.json();
-      if (!res.ok) throw new Error(d.error);
-      updateFrequency(d);
-    } catch {
-      /* connection state is reflected by the main poll(); keep last chart */
-    }
-  }
-
-  function updateFrequency(d) {
-    const f = typeof d.frequency === "number" ? d.frequency : null;
-    freqThresh.hi = typeof d.switchFreqHighThresh === "number" ? d.switchFreqHighThresh : null;
-    freqThresh.lo = typeof d.switchFreqLowThresh  === "number" ? d.switchFreqLowThresh  : null;
-
-    document.getElementById("freqValue").textContent = f === null ? "—" : f.toFixed(3);
-
-    const banner = document.getElementById("freqStatus");
-    if (d.highAccumulatorActive === true) {
-      banner.textContent = "Wind energy is captured in the high accumulator";
-      banner.className    = "freq-status high";
-    } else if (f !== null && f > 0) {
-      banner.textContent = "Wind energy is captured in the low accumulator";
-      banner.className    = "freq-status low";
-    } else {
-      banner.textContent = "System idle — no wind energy captured";
-      banner.className    = "freq-status idle";
+    function update(m) {
+      const d = read(m);
+      hi = (typeof d.hi === "number") ? d.hi : null;
+      lo = (typeof d.lo === "number") ? d.lo : null;
+      const v = (typeof d.v === "number") ? d.v : null;
+      valEl.textContent = v === null ? "—" : v.toFixed(3);
+      const s = status(d);
+      stEl.textContent = s.text;
+      stEl.className = "chart-status " + s.cls;
+      const now = performance.now();
+      samples.push({ t: now, v, b: d.b === true });
+      while (samples.length && now - samples[0].t > WINDOW_MS) samples.shift();
+      if (samples.length > MAX_SAMPLES) samples.shift();
+      draw();
     }
 
-    samples.push({ f, a: d.highAccumulatorActive === true });
-    if (samples.length > FREQ_MAX_POINTS) samples.shift();
-    drawFreqChart();
-  }
+    function draw() {
+      const w = canvas.clientWidth || 0, h = canvas.clientHeight || 0;
+      if (!w || !h) return;                       // hidden tab → nothing to draw
+      if (canvas.width !== w) canvas.width = w;
+      if (canvas.height !== h) canvas.height = h;
+      const c = ctx; c.clearRect(0, 0, w, h);
+      const padL = 48, padR = 56, padT = 14, padB = 20;
+      const plotW = w - padL - padR, plotH = h - padT - padB;
 
-  function drawFreqChart() {
-    const w = freqCanvas.clientWidth  || 800;
-    const h = freqCanvas.clientHeight || 260;
-    if (freqCanvas.width  !== w) freqCanvas.width  = w;
-    if (freqCanvas.height !== h) freqCanvas.height = h;
+      let yMin, yMax;
+      const tv = [hi, lo].filter(x => x !== null && x !== 0);
+      if (tv.length) { yMin = Math.min(...tv) * 0.8; yMax = Math.max(...tv) * 1.2; }
+      else { const fv = samples.map(s => s.v).filter(x => x !== null); yMin = 0; yMax = fv.length ? Math.max(...fv) * 1.15 : 1; }
+      if (yMax <= yMin) yMax = yMin + 1;
 
-    const c = freqCtx;
-    c.clearRect(0, 0, w, h);
+      const yOf = v => padT + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+      const tNow = performance.now();
+      const xOf = t => padL + plotW - ((tNow - t) / WINDOW_MS) * plotW;
 
-    const padL = 48, padR = 48, padT = 16, padB = 22;   // padR leaves room for the 2nd axis
-    const plotW = w - padL - padR;
-    const plotH = h - padT - padB;
+      c.font = "11px Consolas, monospace"; c.textBaseline = "middle";
+      for (let i = 0; i <= 4; i++) { const val = yMin + (yMax - yMin) * (i / 4), y = yOf(val);
+        c.strokeStyle = "#16202e"; c.lineWidth = 1; c.beginPath(); c.moveTo(padL, y); c.lineTo(w - padR, y); c.stroke();
+        c.fillStyle = "#5b6b80"; c.textAlign = "left"; c.fillText(val.toFixed(2), 6, y); }
 
-    // Primary Y-axis zoomed to ±20% around the threshold band.
-    let yMin, yMax;
-    const tv = [freqThresh.hi, freqThresh.lo].filter(v => v !== null && v !== 0);
-    if (tv.length) {
-      yMin = Math.min(...tv) * 0.8;
-      yMax = Math.max(...tv) * 1.2;
-    } else {                                            // thresholds unset/zero → data-based
-      const fv = samples.map(s => s.f).filter(v => v !== null);
-      yMin = 0;
-      yMax = fv.length ? Math.max(...fv) * 1.15 : 1;
-    }
-    if (yMax <= yMin) yMax = yMin + 1;
+      const sigBot = padT + plotH, sigTop = padT + plotH * 0.08;
+      c.fillStyle = "#16a34a"; c.textAlign = "left";
+      c.fillText(boolHigh, w - padR + 6, sigTop); c.fillText(boolLow, w - padR + 6, sigBot - 6);
 
-    const yOf = v => padT + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
-    const xOf = i => padL + plotW - ((samples.length - 1 - i) / (FREQ_MAX_POINTS - 1)) * plotW;
+      const lvl = s => s.b ? sigTop : sigBot;
+      const step = [];
+      for (let i = 0; i < samples.length; i++) { const x = xOf(samples[i].t), y = lvl(samples[i]);
+        if (i > 0 && lvl(samples[i - 1]) !== y) step.push([x, lvl(samples[i - 1])]); step.push([x, y]); }
 
-    // grid + primary (left) axis labels
-    c.font = "11px Consolas, monospace";
-    c.textBaseline = "middle";
-    for (let i = 0; i <= 4; i++) {
-      const v = yMin + (yMax - yMin) * (i / 4);
-      const y = yOf(v);
-      c.strokeStyle = "#16202e"; c.lineWidth = 1;
-      c.beginPath(); c.moveTo(padL, y); c.lineTo(w - padR, y); c.stroke();
-      c.fillStyle = "#5b6b80"; c.textAlign = "left";
-      c.fillText(v.toFixed(2), 6, y);
-    }
-
-    // Secondary (right) axis for the boolean high-accumulator signal.
-    const sigBot = padT + plotH;            // OFF / baseline
-    const sigTop = padT + plotH * 0.08;     // ON level near the top
-    c.fillStyle = "#16a34a"; c.textAlign = "left";
-    c.fillText("ON",  w - padR + 6, sigTop);
-    c.fillText("OFF", w - padR + 6, sigBot - 6);
-
-    // Build the square-wave point list for the boolean signal.
-    const lvl = s => (s.a ? sigTop : sigBot);
-    const stepPts = [];
-    for (let i = 0; i < samples.length; i++) {
-      const x = xOf(i), y = lvl(samples[i]);
-      if (i > 0 && lvl(samples[i - 1]) !== y) stepPts.push([x, lvl(samples[i - 1])]); // vertical edge
-      stepPts.push([x, y]);
-    }
-
-    // Clip everything below to the plot area so traces never overrun the axes/labels.
-    c.save();
-    c.beginPath(); c.rect(padL, padT, plotW, plotH); c.clip();
-
-    // High-accumulator: filled rectangles (bottom → up while TRUE) + top outline.
-    if (stepPts.length) {
-      c.beginPath();
-      c.moveTo(stepPts[0][0], sigBot);
-      stepPts.forEach(([x, y]) => c.lineTo(x, y));
-      c.lineTo(stepPts[stepPts.length - 1][0], sigBot);
-      c.closePath();
-      c.fillStyle = "rgba(34,197,94,0.15)"; c.fill();
-      c.beginPath();
-      stepPts.forEach(([x, y], i) => i === 0 ? c.moveTo(x, y) : c.lineTo(x, y));
-      c.strokeStyle = "#22c55e"; c.lineWidth = 1.5; c.stroke();
-    }
-
-    // Threshold guide lines (dashed).
-    const drawThresh = (v, color, label) => {
-      if (v === null) return;
-      const y = yOf(v);
-      c.strokeStyle = color; c.lineWidth = 1.5; c.setLineDash([6, 4]);
-      c.beginPath(); c.moveTo(padL, y); c.lineTo(w - padR, y); c.stroke();
-      c.setLineDash([]);
-      c.fillStyle = color; c.textAlign = "right";
-      c.fillText(`${label} ${v.toFixed(2)}`, w - padR - 4, y - 9);
-    };
-    drawThresh(freqThresh.hi, "#f59e0b", "High thresh");
-    drawThresh(freqThresh.lo, "#a78bfa", "Low thresh");
-
-    // Frequency trace (gaps where value was null).
-    c.strokeStyle = "#22d3ee"; c.lineWidth = 2; c.beginPath();
-    let started = false;
-    samples.forEach((s, i) => {
-      if (s.f === null) { started = false; return; }
-      const x = xOf(i), y = yOf(s.f);
-      started ? c.lineTo(x, y) : c.moveTo(x, y);
-      started = true;
-    });
-    c.stroke();
-    c.restore();
-
-    // Current-value dot (only if inside the zoomed view).
-    const last = samples[samples.length - 1];
-    if (last && last.f !== null) {
-      const ly = yOf(last.f);
-      if (ly >= padT && ly <= sigBot) {
-        c.fillStyle = "#22d3ee";
-        c.beginPath(); c.arc(xOf(samples.length - 1), ly, 3, 0, Math.PI * 2); c.fill();
+      c.save(); c.beginPath(); c.rect(padL, padT, plotW, plotH); c.clip();
+      if (step.length) {
+        c.beginPath(); c.moveTo(step[0][0], sigBot); step.forEach(([x, y]) => c.lineTo(x, y)); c.lineTo(step[step.length - 1][0], sigBot); c.closePath();
+        c.fillStyle = "rgba(34,197,94,0.15)"; c.fill();
+        c.beginPath(); step.forEach(([x, y], i) => i === 0 ? c.moveTo(x, y) : c.lineTo(x, y)); c.strokeStyle = "#22c55e"; c.lineWidth = 1.5; c.stroke();
       }
+      const thr = (val, col, lbl) => { if (val === null) return; const y = yOf(val);
+        c.strokeStyle = col; c.lineWidth = 1.5; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(padL, y); c.lineTo(w - padR, y); c.stroke(); c.setLineDash([]);
+        c.fillStyle = col; c.textAlign = "right"; c.fillText(`${lbl} ${val.toFixed(2)}`, w - padR - 4, y - 9); };
+      thr(hi, "#f59e0b", "High thresh"); thr(lo, "#a78bfa", "Low thresh");
+
+      c.strokeStyle = lineColor; c.lineWidth = 2; c.beginPath(); let started = false;
+      samples.forEach(s => { if (s.v === null) { started = false; return; } const x = xOf(s.t), y = yOf(s.v); started ? c.lineTo(x, y) : c.moveTo(x, y); started = true; });
+      c.stroke(); c.restore();
+
+      const last = samples[samples.length - 1];
+      if (last && last.v !== null) { const ly = yOf(last.v); if (ly >= padT && ly <= sigBot) { c.fillStyle = lineColor; c.beginPath(); c.arc(xOf(last.t), ly, 3, 0, Math.PI * 2); c.fill(); } }
     }
+    return { update, draw };
   }
 
-  (async function freqLoop() {            // self-scheduling so fast polls never pile up
-    await pollFrequency();
-    setTimeout(freqLoop, FREQ_POLL_MS);
-  })();
-  window.addEventListener("resize", drawFreqChart);
+  const freqStatus = d => d.b ? { text: "Wind energy is captured in the high accumulator", cls: "high" }
+                       : (d.v !== null && d.v > 0) ? { text: "Wind energy is captured in the low accumulator", cls: "low" }
+                       : { text: "System idle — no wind energy captured", cls: "idle" };
+  const valveStatus = d => d.b ? { text: "Release valve OPEN", cls: "on" } : { text: "Release valve closed", cls: "idle" };
+
+  const charts = [
+    makeChart({ canvasId: "chFreq", valueId: "valFreq", statusId: "stFreq", lineColor: "#22d3ee", boolHigh: "ON", boolLow: "OFF",
+      read: m => ({ v: m.frequency.value, hi: m.frequency.hi, lo: m.frequency.lo, b: m.frequency.active }), status: freqStatus }),
+    makeChart({ canvasId: "chLow", valueId: "valLow", statusId: "stLow", lineColor: "#38bdf8", boolHigh: "OPEN", boolLow: "CLOSED",
+      read: m => ({ v: m.lowAcc.value, hi: m.lowAcc.hi, lo: m.lowAcc.lo, b: m.lowAcc.valve }), status: valveStatus }),
+    makeChart({ canvasId: "chHigh", valueId: "valHigh", statusId: "stHigh", lineColor: "#f472b6", boolHigh: "OPEN", boolLow: "CLOSED",
+      read: m => ({ v: m.highAcc.value, hi: m.highAcc.hi, lo: m.highAcc.lo, b: m.highAcc.valve }), status: valveStatus })
+  ];
+
+  async function pollMonitor() {
+    try {
+      const r = await fetch(`${API}/api/monitor`);
+      const m = await r.json();
+      if (!r.ok) throw new Error(m.error);
+      charts.forEach(c => c.update(m));        // keeps collecting even while the Params tab is shown
+    } catch { /* OPC UA state is reflected by the params poll() */ }
+  }
+  (async function monLoop() { await pollMonitor(); setTimeout(monLoop, MON_POLL_MS); })();
+
+  function showTab(name) {
+    document.getElementById("view-params").hidden = name !== "params";
+    document.getElementById("view-charts").hidden = name !== "charts";
+    document.getElementById("tab-params").classList.toggle("active", name === "params");
+    document.getElementById("tab-charts").classList.toggle("active", name === "charts");
+    if (name === "charts") charts.forEach(c => c.draw());   // canvases are laid out now → render buffer
+  }
+  window.addEventListener("resize", () => charts.forEach(c => c.draw()));
 
 </script>
 

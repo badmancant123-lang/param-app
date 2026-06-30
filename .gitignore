@@ -1,5 +1,6 @@
-# Secrets / local dev config (virtual-core token lives here)
+# Secrets / local dev config (tokens live here)
 backend/.env
+backend/.env.device
 
 # Dependencies
 backend/node_modules/
