@@ -5,7 +5,7 @@ description: |
   Web HMI for CtrlX CORE. Reads/writes PLC parameters over OPC UA and fetches
   historical data from InfluxDB. Runs natively as a snap daemon and is reachable
   from the ctrlX web interface via the device reverse proxy (sidebar entry "/hmi").
-base: core22
+base: core24
 confinement: strict
 grade: stable
 
