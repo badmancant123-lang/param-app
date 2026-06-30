@@ -1,8 +1,8 @@
 name: Build ctrlX HMI snap (arm64)
 
-# Builds the arm64 .snap for the physical ctrlX OS device. Runs on a normal amd64
-# GitHub runner and cross-builds via QEMU (diddlesnaps/snapcraft-multiarch-action),
-# so no local LXD/build VM is needed. Download the .snap from the run's artifacts.
+# Builds the arm64 .snap for the physical ctrlX OS device (base: core24).
+# Uses a native arm64 GitHub runner + the official Snapcraft action (current snapcraft,
+# supports core24, no QEMU). Download the .snap from the run's artifacts.
 
 on:
   push:
@@ -11,18 +11,15 @@ on:
 
 jobs:
   build-arm64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm      # native arm64 runner → produces an arm64 snap
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up QEMU (arm64 emulation)
-        uses: docker/setup-qemu-action@v3
-
-      - name: Build snap for arm64
-        uses: diddlesnaps/snapcraft-multiarch-action@v1
+      - name: Build snap
+        uses: snapcore/action-build@v1
+        id: build
         with:
-          architecture: arm64
-          path: backend          # snapcraft.yaml lives in backend/
+          path: backend            # snapcraft.yaml lives in backend/
 
       - name: Upload arm64 snap
         uses: actions/upload-artifact@v4
