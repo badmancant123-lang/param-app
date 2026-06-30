@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "id": "ctrlx-hmi-app",
+  "services": {
+    "proxyMapping": [
+      {
+        "name": "ctrlx-hmi-app.web",
+        "url": "/hmi",
+        "binding": "unix://{$SNAP_DATA}/package-run/ctrlx-hmi-app/web.sock"
+      }
+    ]
+  },
+  "menus": {
+    "sidebar": [
+      {
+        "id": "hmi",
+        "title": "Parameter HMI",
+        "icon": "bosch-ic-settings",
+        "items": [
+          { "id": "hmi-home", "title": "Parameters", "link": "/hmi" }
+        ]
+      }
+    ]
+  }
+}

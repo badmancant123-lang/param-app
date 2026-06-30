@@ -1,0 +1,21 @@
+{
+  "name": "param-app",
+  "version": "1.0.0",
+  "main": "app.js",
+  "type": "module",
+  "bin": { "ctrlx-hmi-app": "app.js" },
+  "files": [ "app.js", "public/" ],
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --env-file=.env app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^4.22.2",
+    "hexy": "0.3.0",
+    "node-opcua": "^2.173.1"
+  },
+  "overrides": {
+    "hexy": "0.3.0"
+  }
+}

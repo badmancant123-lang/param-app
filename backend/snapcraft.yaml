@@ -1,0 +1,80 @@
+name: ctrlx-hmi-app
+version: '1.0.0'
+summary: CtrlX CORE Parameter HMI
+description: |
+  Web HMI for CtrlX CORE. Reads/writes PLC parameters over OPC UA and fetches
+  historical data from InfluxDB. Runs natively as a snap daemon and is reachable
+  from the ctrlX web interface via the device reverse proxy (sidebar entry "/hmi").
+base: core22
+confinement: strict
+grade: stable
+
+apps:
+  hmi:
+    command: bin/ctrlx-hmi-app
+    daemon: simple
+    restart-condition: always
+    plugs: [network, network-bind]
+    environment:
+      # Bound unix socket the reverse proxy maps to /hmi (see package-manifest).
+      SOCKET_PATH: $SNAP_DATA/package-run/ctrlx-hmi-app/web.sock
+      # The reverse proxy forwards the /hmi prefix unstripped, so mount the app there.
+      BASE_PATH: /hmi
+      # On the device the Data Layer OPC UA server and InfluxDB are on localhost.
+      OPCUA_ENDPOINT: opc.tcp://127.0.0.1:4840
+      OPCUA_SECURITY: sign-encrypt
+      # On the device the ctrlX reverse proxy (caddy) serves /influxdb on 443; the :8443
+      # we use locally is only the VM's host-side port forward.
+      INFLUX_URL: https://127.0.0.1/influxdb
+      # Device-specific credentials for this physical ctrlX OS (192.168.1.10).
+      OPCUA_USER: boschrexroth
+      OPCUA_PASSWORD: Boschrexroth1
+      INFLUX_ORG: dafe3419f04ff49f
+      INFLUX_TOKEN: "3xMwcGy-hrpH4bhb7ZfMo0O5NAzFqq4lKMtq4FaVS_UBJvnEJI7M7Ol8OtJOheotaOO7hcoqevu5rMls2tzxtA=="
+
+parts:
+  app:
+    plugin: npm
+    source: .
+    npm-include-node: true
+    npm-node-version: "20.11.0"   # bundles a Node runtime inside the snap
+    build-environment:
+      # This VM's kernel deadlocks on io_uring during npm install (hung-task on
+      # iou-sqp threads); disable libuv's io_uring for the build.
+      - UV_USE_IO_URING: "0"
+    override-build: |
+      set -eux
+      craftctl default
+      # node-opcua-debug pulls a nested ESM build of hexy (the root "overrides" pin is
+      # ignored by the plugin's `npm install -g`) → ERR_REQUIRE_ESM at runtime. Working
+      # from inside the package's node_modules, delete every *nested* hexy, then drop a
+      # known CommonJS hexy@0.3.0 at the top level so Node resolves up to it.
+      cd "$CRAFT_PART_INSTALL/lib/node_modules/param-app/node_modules"
+      find . -type d -path '*/node_modules/hexy' -prune -exec rm -rf {} +
+      rm -rf hexy
+      npm pack hexy@0.3.0 --pack-destination .
+      mkdir hexy
+      tar -xzf hexy-0.3.0.tgz --strip-components=1 -C hexy
+      rm -f hexy-0.3.0.tgz
+      test -f hexy/package.json
+  configs:
+    plugin: dump
+    source: ./configs
+    organize:
+      'package-assets/*': package-assets/${SNAPCRAFT_PROJECT_NAME}/
+
+slots:
+  # Delivers the package-manifest (menu + proxy mapping) to the ctrlX CORE.
+  package-assets:
+    interface: content
+    content: package-assets
+    source:
+      read:
+        - $SNAP/package-assets/${SNAPCRAFT_PROJECT_NAME}
+  # Lets the reverse proxy reach our unix socket under $SNAP_DATA.
+  package-run:
+    interface: content
+    content: package-run
+    source:
+      write:
+        - $SNAP_DATA/package-run/${SNAPCRAFT_PROJECT_NAME}

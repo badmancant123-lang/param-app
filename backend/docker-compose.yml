@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  hmi-app:
+    build: .
+    image: ctrlx-hmi-app:latest
+    container_name: ctrlx-hmi-app
+    ports:
+      - "3000:3000"
+    restart: always
+    environment:
+      # Container runs on the CtrlX CORE; reach the device's local OPC UA / Influx
+      # via the Docker host gateway. Override these for other targets.
+      - OPCUA_ENDPOINT=opc.tcp://172.17.0.1:4840
+      - OPCUA_SECURITY=sign-encrypt
+      - INFLUX_URL=https://172.17.0.1:8443/influxdb
+      # - OPCUA_USER=boschrexroth
+      # - OPCUA_PASSWORD=boschrexroth
+      # - INFLUX_TOKEN=<set-me>
+      # - INFLUX_ORG=<set-me>

@@ -1,0 +1,15 @@
+# Secrets / local dev config (virtual-core token lives here)
+backend/.env
+
+# Dependencies
+backend/node_modules/
+
+# Snapcraft build outputs
+backend/parts/
+backend/stage/
+backend/prime/
+backend/*.snap
+backend/*.tar
+
+# Logs
+*.log

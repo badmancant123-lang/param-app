@@ -1,0 +1,11 @@
+node_modules
+.env
+npm-debug.log
+snap
+*.snap
+*.tar
+docker-compose.yml
+snapcraft.yaml
+scripts
+.vscode
+.git

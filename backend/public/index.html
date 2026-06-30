@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>CtrlX CORE — Parameter Editor & Data Query</title>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #0b0f14;
+      color: #d6e2f0;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: linear-gradient(90deg, #0f1722, #111c2b);
+      border-bottom: 1px solid #1f2a3a;
+    }
+
+    header h1 {
+      font-size: 16px;
+      letter-spacing: 1.5px;
+      color: #7dd3fc;
+      text-transform: uppercase;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .dot {
+      height: 9px;
+      width: 9px;
+      border-radius: 50%;
+      background: #4b5563;
+      transition: background 0.3s, box-shadow 0.3s;
+      flex-shrink: 0;
+    }
+
+    .dot.connected    { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+    .dot.disconnected { background: #ef4444; }
+
+    .container {
+      padding: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: #0f1722;
+      border: 1px solid #1f2a3a;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 24px rgba(0,0,0,0.4);
+      margin-bottom: 24px; /* Added spacing between panels */
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      text-align: left;
+      padding: 12px 16px;
+      background: #111c2b;
+      color: #7dd3fc;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 1px solid #1f2a3a;
+    }
+
+    td {
+      padding: 11px 16px;
+      border-bottom: 1px solid #1a2332;
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(125, 211, 252, 0.04); }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: "Consolas", monospace;
+      background: #1a2740;
+      color: #7dd3fc;
+      letter-spacing: 0.3px;
+    }
+
+    .live-val {
+      font-family: "Consolas", monospace;
+      font-size: 15px;
+      font-weight: 600;
+      color: #f0f9ff;
+      min-width: 100px;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 150px;
+      padding: 7px 10px;
+      background: #0b0f14;
+      border: 1px solid #2a3b52;
+      color: #d6e2f0;
+      border-radius: 6px;
+      outline: none;
+      font-size: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="number"]:focus,
+    input[type="text"]:focus {
+      border-color: #7dd3fc;
+      box-shadow: 0 0 8px rgba(125,211,252,0.25);
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #7dd3fc;
+      cursor: pointer;
+    }
+
+    .write-btn {
+      background: #1e3a5f;
+      border: 1px solid #3b82f6;
+      border-radius: 6px;
+      color: #bfdbfe;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 16px;
+      letter-spacing: 0.5px;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .write-btn:hover  { background: #2563eb; color: #fff; }
+    .write-btn:active { transform: scale(0.97); }
+
+    .action-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .feedback {
+      font-size: 12px;
+      min-width: 80px;
+    }
+
+    .feedback.ok  { color: #22c55e; }
+    .feedback.err { color: #f87171; }
+
+    #empty-msg {
+      padding: 48px;
+      text-align: center;
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    #empty-msg code {
+      font-family: "Consolas", monospace;
+      color: #7dd3fc;
+    }
+
+    /* --- NEW InfluxDB Query Panel Styles --- */
+    .query-panel {
+      padding: 20px;
+    }
+
+    .query-panel h2,
+    .freq-panel h2 {
+      font-size: 14px;
+      letter-spacing: 1px;
+      color: #7dd3fc;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1f2a3a;
+    }
+
+
+
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #0b0f14;
+      border: 1px solid #2a3b52;
+      padding: 12px;
+      border-radius: 6px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #d6e2f0;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    select[multiple],
+    input[type="datetime-local"] {
+      width: 100%;
+      padding: 8px 10px;
+      background: #0b0f14;
+      border: 1px solid #2a3b52;
+      color: #d6e2f0;
+      border-radius: 6px;
+      outline: none;
+      font-size: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    select[multiple] {
+      height: 100px;
+    }
+
+    select[multiple]:focus,
+    input[type="datetime-local"]:focus {
+      border-color: #7dd3fc;
+      box-shadow: 0 0 8px rgba(125,211,252,0.25);
+    }
+
+    .fetch-btn {
+      background: #22c55e;
+      border: 1px solid #16a34a;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 24px;
+      letter-spacing: 0.5px;
+      transition: background 0.2s, transform 0.1s;
+      width: 100%;
+    }
+
+    .fetch-btn:hover { background: #16a34a; }
+    .fetch-btn:active { transform: scale(0.98); }
+
+    /* --- Frequency Monitor --- */
+    .freq-panel { padding: 20px; }
+
+    .freq-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .freq-readout { display: flex; align-items: baseline; gap: 12px; }
+    .freq-readout .lbl {
+      font-size: 12px; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .freq-readout .val {
+      font-family: "Consolas", monospace;
+      font-size: 40px; font-weight: 700; line-height: 1;
+      color: #22d3ee;
+    }
+
+    .freq-status {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 14px; font-weight: 600;
+      border: 1px solid;
+    }
+    .freq-status.high { background: rgba(34,211,238,0.08);  border-color: #22d3ee; color: #67e8f9; }
+    .freq-status.low  { background: rgba(167,139,250,0.10); border-color: #a78bfa; color: #c4b5fd; }
+    .freq-status.idle { background: rgba(75,85,99,0.10);    border-color: #374151; color: #6b7280; }
+
+    canvas#freqChart {
+      width: 100%;
+      height: 260px;
+      display: block;
+      margin-top: 16px;
+      background: #0b0f14;
+      border: 1px solid #1f2a3a;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>CtrlX CORE — Parameter Editor</h1>
+  <div class="status">
+    <span class="dot" id="dot"></span>
+    <span id="status-text">Connecting…</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="panel freq-panel">
+    <h2>Frequency Monitor</h2>
+    <div class="freq-head">
+      <div class="freq-readout">
+        <span class="lbl">Live Frequency</span>
+        <span class="val" id="freqValue">—</span>
+      </div>
+      <div class="freq-status idle" id="freqStatus">Waiting for data…</div>
+    </div>
+    <canvas id="freqChart"></canvas>
+  </div>
+
+  <div class="panel">
+    <table id="param-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Live Value</th>
+          <th>Set Value</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div id="empty-msg" hidden>
+      No variables found under <code>UserInput</code>.<br>
+      Add variables in the CtrlX PLC — they will appear here automatically.
+    </div>
+  </div>
+
+  <div class="panel query-panel">
+    <h2>InfluxDB Query Parameters</h2>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label>Select Variables:</label>
+        <div class="checkbox-group" id="measurements">
+            <label><input type="checkbox" name="measurement" value="HighAccumulator High Threshold"> HighAccumulator High Threshold</label>
+            <label><input type="checkbox" name="measurement" value="HighAccumulator Low Threshold"> HighAccumulator Low Threshold</label>
+            <label><input type="checkbox" name="measurement" value="HighAccumulator Pressure"> HighAccumulator Pressure</label>
+            <label><input type="checkbox" name="measurement" value="HighAcc Pressure Release"> HighAcc Pressure Release</label>
+            <label><input type="checkbox" name="measurement" value="High Accumulator Switch Active"> High Accumulator Switch Active</label>
+            <label><input type="checkbox" name="measurement" value="LowAccumulator High Threshold"> LowAccumulator High Threshold</label>
+            <label><input type="checkbox" name="measurement" value="LowAccumulator Low Threshold"> LowAccumulator Low Threshold</label>
+            <label><input type="checkbox" name="measurement" value="LowAccumulator Pressure"> LowAccumulator Pressure</label>
+            <label><input type="checkbox" name="measurement" value="LowAcc Pressure Release"> LowAcc Pressure Release</label>
+            <label><input type="checkbox" name="measurement" value="Frequency"> Frequency</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="startTime">Start Time:</label>
+        <input type="datetime-local" id="startTime">
+        
+        <label for="endTime" style="margin-top: 12px;">End Time:</label>
+        <input type="datetime-local" id="endTime">
+      </div>
+    </div>
+
+    <button class="fetch-btn" onclick="executeDataQuery()">Fetch Data</button>
+  </div>
+
+</div>
+
+<script>
+  // Derive the API base from where this page is served, so calls work behind the ctrlX
+  // reverse proxy (/hmi/api/...) and at the root locally (/api/...).
+  const API     = window.location.pathname.replace(/\/$/, "");
+  const POLL_MS = 2000;
+
+  const DT       = { Boolean: 1, Int16: 4, UInt16: 5, Int32: 6, UInt32: 7, Int64: 8, UInt64: 9, Float: 10, Double: 11, String: 12 };
+  const INT_TYPES = new Set([DT.Int16, DT.UInt16, DT.Int32, DT.UInt32, DT.Int64, DT.UInt64]);
+
+  let lastSig = "";
+
+  function setStatus(connected) {
+    document.getElementById("dot").className = "dot " + (connected ? "connected" : "disconnected");
+    document.getElementById("status-text").textContent = connected ? "OPC UA Connected" : "OPC UA Disconnected";
+  }
+
+  function fmt(value) {
+    if (value === null || value === undefined) return "—";
+    if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+    if (typeof value === "number")  return Number.isInteger(value) ? String(value) : value.toFixed(4);
+    return String(value);
+  }
+
+  function inputHTML(name, value, dataType) {
+    if (dataType === DT.Boolean) {
+      return `<input id="in-${name}" type="checkbox" ${value ? "checked" : ""}>`;
+    }
+    if (dataType === DT.String) {
+      return `<input id="in-${name}" type="text" value="${String(value ?? "")}">`;
+    }
+    const step = INT_TYPES.has(dataType) ? "1" : "any";
+    return `<input id="in-${name}" type="number" step="${step}" value="${value ?? 0}">`;
+  }
+
+  function renderTable(params) {
+    const tbody = document.getElementById("tableBody");
+    const table = document.getElementById("param-table");
+    const empty = document.getElementById("empty-msg");
+
+    if (!params.length) {
+      table.hidden = true;
+      empty.hidden = false;
+      return;
+    }
+
+    table.hidden = false;
+    empty.hidden = true;
+
+    tbody.innerHTML = params.map(({ name, value, dataType }) => `
+      <tr>
+        <td><span class="tag">${name}</span></td>
+        <td class="live-val" id="lv-${name}">${fmt(value)}</td>
+        <td>${inputHTML(name, value, dataType)}</td>
+        <td>
+          <div class="action-cell">
+            <button class="write-btn" data-name="${name}">Write</button>
+            <span class="feedback" id="fb-${name}"></span>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+
+    tbody.querySelectorAll(".write-btn").forEach(btn => {
+      btn.addEventListener("click", () => writeParam(btn.dataset.name));
+    });
+  }
+
+  function updateLive(params) {
+    for (const { name, value } of params) {
+      const el = document.getElementById(`lv-${name}`);
+      if (el) el.textContent = fmt(value);
+    }
+  }
+
+  async function writeParam(name) {
+    const input = document.getElementById(`in-${name}`);
+    const fb    = document.getElementById(`fb-${name}`);
+    const value = input.type === "checkbox" ? input.checked
+                : input.type === "text"     ? input.value
+                : parseFloat(input.value);
+
+    if (input.type === "number" && isNaN(value)) {
+      flash(fb, "Invalid value", "err");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/api/params/${encodeURIComponent(name)}`, {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ value })
+      });
+      if (res.ok) {
+        flash(fb, "Written", "ok");
+      } else {
+        const { error } = await res.json().catch(() => ({}));
+        flash(fb, error || "Write failed", "err");
+      }
+    } catch {
+      flash(fb, "No connection", "err");
+    }
+  }
+
+  function flash(el, msg, cls) {
+    el.textContent = msg;
+    el.className   = `feedback ${cls}`;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.textContent = ""; el.className = "feedback"; }, 2500);
+  }
+
+  async function poll() {
+    try {
+      const res    = await fetch(`${API}/api/params`);
+      const params = await res.json();
+      if (!res.ok) throw new Error(params.error);
+
+      setStatus(true);
+
+      const sig = params.map(p => p.name).join(",");
+      if (sig !== lastSig) {
+        renderTable(params);
+        lastSig = sig;
+      } else {
+        updateLive(params);
+      }
+    } catch {
+      setStatus(false);
+    }
+  }
+
+  poll();
+  setInterval(poll, POLL_MS);
+
+
+
+  // ── InfluxDB Query Logic ────────────────────────────────────────────────────
+
+  async function executeDataQuery() {
+    // 1. Grab checked boxes instead of select options
+    const checkboxes = document.querySelectorAll('input[name="measurement"]:checked');
+    const selectedOptions = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (selectedOptions.length === 0) {
+        alert("Please select at least one variable.");
+        return;
+    }
+
+    const rawStart = document.getElementById('startTime').value;
+    const rawEnd = document.getElementById('endTime').value;
+    
+    let startTime, endTime;
+
+    if (!rawStart) {
+        startTime = "-5m"; 
+        endTime = "now()"; 
+    } else {
+        startTime = new Date(rawStart).toISOString();
+        endTime = rawEnd ? new Date(rawEnd).toISOString() : new Date().toISOString();
+
+        if (new Date(startTime) >= new Date(endTime)) {
+            alert("Error: Your Start Time is set after your End Time. Please adjust the dates.");
+            return;
+        }
+    }
+
+    const payload = {
+        bucket: "NodeRed", 
+        measurements: selectedOptions,
+        start: startTime,
+        stop: endTime
+    };
+
+    const fetchBtn = document.querySelector('.fetch-btn');
+    fetchBtn.textContent = "Fetching...";
+    fetchBtn.style.background = "#ca8a04";
+
+    try {
+        const response = await fetch(`${API}/api/query`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            const errorDetails = await response.json().catch(() => ({ error: "Unknown backend error" }));
+            throw new Error(errorDetails.error || response.statusText);
+        }
+        
+        const csvData = await response.text(); 
+        
+        // --- NEW: Trigger File Download ---
+        // Create a Blob from the CSV string
+        const blob = new Blob([csvData], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        
+        // Create a temporary, invisible link element
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        // Name the file dynamically based on the current time
+        a.download = `InfluxDB_Export_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+        
+        // Add to document, click it, and clean up
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        alert(`Fetch Failed!\n${error.message}`); 
+    } finally {
+        fetchBtn.textContent = "Fetch Data";
+        fetchBtn.style.background = "#22c55e"; 
+    }
+  }
+
+
+ 
+            
+
+  // ── Frequency Monitor (live readout + status + canvas strip chart) ───────────
+
+  const FREQ_POLL_MS    = 100;          // 10 Hz — smooth without hammering the PLC
+  const FREQ_MAX_POINTS = 300;          // rolling window (~30 s at 10 Hz)
+  const samples = [];                   // [{ f: number|null, a: boolean }]
+  let   freqThresh = { hi: null, lo: null };
+
+  const freqCanvas = document.getElementById("freqChart");
+  const freqCtx    = freqCanvas.getContext("2d");
+
+  async function pollFrequency() {
+    try {
+      const res = await fetch(`${API}/api/frequency`);
+      const d   = await res.json();
+      if (!res.ok) throw new Error(d.error);
+      updateFrequency(d);
+    } catch {
+      /* connection state is reflected by the main poll(); keep last chart */
+    }
+  }
+
+  function updateFrequency(d) {
+    const f = typeof d.frequency === "number" ? d.frequency : null;
+    freqThresh.hi = typeof d.switchFreqHighThresh === "number" ? d.switchFreqHighThresh : null;
+    freqThresh.lo = typeof d.switchFreqLowThresh  === "number" ? d.switchFreqLowThresh  : null;
+
+    document.getElementById("freqValue").textContent = f === null ? "—" : f.toFixed(3);
+
+    const banner = document.getElementById("freqStatus");
+    if (d.highAccumulatorActive === true) {
+      banner.textContent = "Wind energy is captured in the high accumulator";
+      banner.className    = "freq-status high";
+    } else if (f !== null && f > 0) {
+      banner.textContent = "Wind energy is captured in the low accumulator";
+      banner.className    = "freq-status low";
+    } else {
+      banner.textContent = "System idle — no wind energy captured";
+      banner.className    = "freq-status idle";
+    }
+
+    samples.push({ f, a: d.highAccumulatorActive === true });
+    if (samples.length > FREQ_MAX_POINTS) samples.shift();
+    drawFreqChart();
+  }
+
+  function drawFreqChart() {
+    const w = freqCanvas.clientWidth  || 800;
+    const h = freqCanvas.clientHeight || 260;
+    if (freqCanvas.width  !== w) freqCanvas.width  = w;
+    if (freqCanvas.height !== h) freqCanvas.height = h;
+
+    const c = freqCtx;
+    c.clearRect(0, 0, w, h);
+
+    const padL = 48, padR = 48, padT = 16, padB = 22;   // padR leaves room for the 2nd axis
+    const plotW = w - padL - padR;
+    const plotH = h - padT - padB;
+
+    // Primary Y-axis zoomed to ±20% around the threshold band.
+    let yMin, yMax;
+    const tv = [freqThresh.hi, freqThresh.lo].filter(v => v !== null && v !== 0);
+    if (tv.length) {
+      yMin = Math.min(...tv) * 0.8;
+      yMax = Math.max(...tv) * 1.2;
+    } else {                                            // thresholds unset/zero → data-based
+      const fv = samples.map(s => s.f).filter(v => v !== null);
+      yMin = 0;
+      yMax = fv.length ? Math.max(...fv) * 1.15 : 1;
+    }
+    if (yMax <= yMin) yMax = yMin + 1;
+
+    const yOf = v => padT + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+    const xOf = i => padL + plotW - ((samples.length - 1 - i) / (FREQ_MAX_POINTS - 1)) * plotW;
+
+    // grid + primary (left) axis labels
+    c.font = "11px Consolas, monospace";
+    c.textBaseline = "middle";
+    for (let i = 0; i <= 4; i++) {
+      const v = yMin + (yMax - yMin) * (i / 4);
+      const y = yOf(v);
+      c.strokeStyle = "#16202e"; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(padL, y); c.lineTo(w - padR, y); c.stroke();
+      c.fillStyle = "#5b6b80"; c.textAlign = "left";
+      c.fillText(v.toFixed(2), 6, y);
+    }
+
+    // Secondary (right) axis for the boolean high-accumulator signal.
+    const sigBot = padT + plotH;            // OFF / baseline
+    const sigTop = padT + plotH * 0.08;     // ON level near the top
+    c.fillStyle = "#16a34a"; c.textAlign = "left";
+    c.fillText("ON",  w - padR + 6, sigTop);
+    c.fillText("OFF", w - padR + 6, sigBot - 6);
+
+    // Build the square-wave point list for the boolean signal.
+    const lvl = s => (s.a ? sigTop : sigBot);
+    const stepPts = [];
+    for (let i = 0; i < samples.length; i++) {
+      const x = xOf(i), y = lvl(samples[i]);
+      if (i > 0 && lvl(samples[i - 1]) !== y) stepPts.push([x, lvl(samples[i - 1])]); // vertical edge
+      stepPts.push([x, y]);
+    }
+
+    // Clip everything below to the plot area so traces never overrun the axes/labels.
+    c.save();
+    c.beginPath(); c.rect(padL, padT, plotW, plotH); c.clip();
+
+    // High-accumulator: filled rectangles (bottom → up while TRUE) + top outline.
+    if (stepPts.length) {
+      c.beginPath();
+      c.moveTo(stepPts[0][0], sigBot);
+      stepPts.forEach(([x, y]) => c.lineTo(x, y));
+      c.lineTo(stepPts[stepPts.length - 1][0], sigBot);
+      c.closePath();
+      c.fillStyle = "rgba(34,197,94,0.15)"; c.fill();
+      c.beginPath();
+      stepPts.forEach(([x, y], i) => i === 0 ? c.moveTo(x, y) : c.lineTo(x, y));
+      c.strokeStyle = "#22c55e"; c.lineWidth = 1.5; c.stroke();
+    }
+
+    // Threshold guide lines (dashed).
+    const drawThresh = (v, color, label) => {
+      if (v === null) return;
+      const y = yOf(v);
+      c.strokeStyle = color; c.lineWidth = 1.5; c.setLineDash([6, 4]);
+      c.beginPath(); c.moveTo(padL, y); c.lineTo(w - padR, y); c.stroke();
+      c.setLineDash([]);
+      c.fillStyle = color; c.textAlign = "right";
+      c.fillText(`${label} ${v.toFixed(2)}`, w - padR - 4, y - 9);
+    };
+    drawThresh(freqThresh.hi, "#f59e0b", "High thresh");
+    drawThresh(freqThresh.lo, "#a78bfa", "Low thresh");
+
+    // Frequency trace (gaps where value was null).
+    c.strokeStyle = "#22d3ee"; c.lineWidth = 2; c.beginPath();
+    let started = false;
+    samples.forEach((s, i) => {
+      if (s.f === null) { started = false; return; }
+      const x = xOf(i), y = yOf(s.f);
+      started ? c.lineTo(x, y) : c.moveTo(x, y);
+      started = true;
+    });
+    c.stroke();
+    c.restore();
+
+    // Current-value dot (only if inside the zoomed view).
+    const last = samples[samples.length - 1];
+    if (last && last.f !== null) {
+      const ly = yOf(last.f);
+      if (ly >= padT && ly <= sigBot) {
+        c.fillStyle = "#22d3ee";
+        c.beginPath(); c.arc(xOf(samples.length - 1), ly, 3, 0, Math.PI * 2); c.fill();
+      }
+    }
+  }
+
+  (async function freqLoop() {            // self-scheduling so fast polls never pile up
+    await pollFrequency();
+    setTimeout(freqLoop, FREQ_POLL_MS);
+  })();
+  window.addEventListener("resize", drawFreqChart);
+
+</script>
+
+</body>
+</html>

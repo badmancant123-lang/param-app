@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend — OPC UA (app.js)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/app.js",
+      "cwd": "${workspaceFolder}/backend",
+      "runtimeArgs": ["--inspect"],
+      "env": {},
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "outputCapture": "std",
+      "console": "integratedTerminal"
+    }
+  ]
+}
