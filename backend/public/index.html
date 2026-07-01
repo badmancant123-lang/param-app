@@ -736,22 +736,30 @@
     const d = new Date(iso);
     if (isNaN(d)) return iso;
     const pad = n => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const frac = (iso.match(/\.(\d+)/) || [, "000"])[1];   // keep InfluxDB's sub-second digits (µs)
+    const s = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+              `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${frac}`;
+    return `="${s}"`;   // Excel: force TEXT so the full local timestamp (seconds + µs) shows as-is
   }
-  function localizeCsvTimes(csv) {
-    const lines = csv.split("\n");
+  // Keep only the useful columns (drop result/table/_start/_stop/_field and the leading
+  // annotation column) and localize _time.
+  const KEEP_COLS = ["_time", "_value", "_measurement"];
+  function formatCsv(csv) {
+    const lines = csv.replace(/\r/g, "").split("\n");   // InfluxDB CSV is CRLF; strip CRs so the last column matches
     const headerIdx = lines.findIndex(l => l.split(",").includes("_time"));
     if (headerIdx === -1) return csv;
     const cols = lines[headerIdx].split(",");
-    const timeCols = ["_time", "_start", "_stop"].map(c => cols.indexOf(c)).filter(i => i >= 0);
-    if (!timeCols.length) return csv;
-    for (let i = headerIdx + 1; i < lines.length; i++) {
+    const keep = KEEP_COLS.map(c => cols.indexOf(c)).filter(i => i >= 0);
+    if (!keep.length) return csv;
+    const timeIdx = cols.indexOf("_time");
+    const out = [];
+    for (let i = headerIdx; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
       const parts = lines[i].split(",");
-      for (const ci of timeCols) if (/\dT\d.*Z$/.test(parts[ci] || "")) parts[ci] = toLocalStamp(parts[ci]);
-      lines[i] = parts.join(",");
+      if (i > headerIdx && /\dT\d.*Z$/.test(parts[timeIdx] || "")) parts[timeIdx] = toLocalStamp(parts[timeIdx]);
+      out.push(keep.map(ci => parts[ci] ?? "").join(","));
     }
-    return lines.join("\n");
+    return out.join("\r\n") + "\r\n";   // CRLF for Excel/Windows
   }
 
   async function executeDataQuery() {
@@ -805,7 +813,7 @@
             throw new Error(errorDetails.error || response.statusText);
         }
         
-        const csvData = localizeCsvTimes(await response.text());
+        const csvData = formatCsv(await response.text());
 
         // --- Trigger File Download (timestamps converted to local time) ---
         const blob = new Blob([csvData], { type: 'text/csv' });
