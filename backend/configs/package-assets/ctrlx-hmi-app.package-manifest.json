@@ -16,9 +16,8 @@
         "id": "hmi",
         "title": "Parameter HMI",
         "icon": "bosch-ic-settings",
-        "items": [
-          { "id": "hmi-home", "title": "Parameters", "link": "/hmi" }
-        ]
+        "link": "/hmi",
+        "target": "ctrlx-hmi-app"
       }
     ]
   }
