@@ -281,6 +281,37 @@ app.put("/api/params/:name", async (req, res) => {
 });
 
 
+// Simulation flag: plc/.../MAIN/_simulationActive (Boolean). It lives directly under MAIN,
+// outside the UserInput struct, so it needs its own read/write endpoints.
+function simNodeId() {
+  const MAIN = FREQ_BASE.replace(/\/[^/]+$/, "");   // parent of frequencyControl → .../MAIN
+  return `${NS_PREFIX};s=${MAIN}/_simulationActive`;
+}
+
+app.get("/api/simulation", async (_req, res) => {
+  try {
+    if (!session) return res.status(503).json({ error: "OPC UA not connected" });
+    const dv = await session.read({ nodeId: simNodeId(), attributeId: AttributeIds.Value });
+    res.json({ active: dv.value?.value ?? null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/simulation", async (req, res) => {
+  try {
+    if (!session) return res.status(503).json({ error: "OPC UA not connected" });
+    await session.write({
+      nodeId: simNodeId(),
+      attributeId: AttributeIds.Value,
+      value: { value: { dataType: DataType.Boolean, value: Boolean(req.body.value) } }
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Live data for the charts page: frequency + both accumulators in one batch read.
 // frequencyControl / lowAccumulator / highAccumulator live under MAIN; the threshold
 // setpoints live in the UserInput struct (BASE_PATH).
