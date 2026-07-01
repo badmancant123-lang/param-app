@@ -731,6 +731,29 @@
     document.getElementById("startTime").value = toLocalInput(new Date(now.getTime() - 5 * 60 * 1000));
   })();
 
+  // InfluxDB returns timestamps in UTC; convert the CSV's time columns to local wall-clock.
+  function toLocalStamp(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+  function localizeCsvTimes(csv) {
+    const lines = csv.split("\n");
+    const headerIdx = lines.findIndex(l => l.split(",").includes("_time"));
+    if (headerIdx === -1) return csv;
+    const cols = lines[headerIdx].split(",");
+    const timeCols = ["_time", "_start", "_stop"].map(c => cols.indexOf(c)).filter(i => i >= 0);
+    if (!timeCols.length) return csv;
+    for (let i = headerIdx + 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      const parts = lines[i].split(",");
+      for (const ci of timeCols) if (/\dT\d.*Z$/.test(parts[ci] || "")) parts[ci] = toLocalStamp(parts[ci]);
+      lines[i] = parts.join(",");
+    }
+    return lines.join("\n");
+  }
+
   async function executeDataQuery() {
     // 1. Grab checked boxes instead of select options
     const checkboxes = document.querySelectorAll('input[name="measurement"]:checked');
@@ -782,10 +805,9 @@
             throw new Error(errorDetails.error || response.statusText);
         }
         
-        const csvData = await response.text(); 
-        
-        // --- NEW: Trigger File Download ---
-        // Create a Blob from the CSV string
+        const csvData = localizeCsvTimes(await response.text());
+
+        // --- Trigger File Download (timestamps converted to local time) ---
         const blob = new Blob([csvData], { type: 'text/csv' });
         const url = window.URL.createObjectURL(blob);
         

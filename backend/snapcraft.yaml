@@ -29,8 +29,8 @@ apps:
       # Device-specific credentials for this physical ctrlX OS (192.168.1.10).
       OPCUA_USER: boschrexroth
       OPCUA_PASSWORD: Boschrexroth1
-      INFLUX_ORG: dafe3419f04ff49f
-      INFLUX_TOKEN: "3xMwcGy-hrpH4bhb7ZfMo0O5NAzFqq4lKMtq4FaVS_UBJvnEJI7M7Ol8OtJOheotaOO7hcoqevu5rMls2tzxtA=="
+      INFLUX_ORG: 86e5d3b893363a06
+      INFLUX_TOKEN: "KThxZwfOGJ8LbrRg3qpauapqPG-CJ7tU16wPgfb4BMfoFGO85w7dPWqL7wgq1hd6WE-fkoakdniwzTL1_yZ4Pg=="
 
 parts:
   app:
