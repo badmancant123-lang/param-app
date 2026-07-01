@@ -184,7 +184,8 @@
       padding: 20px;
     }
 
-    .query-panel h2 {
+    .query-panel h2,
+    .comm-panel h2 {
       font-size: 14px;
       letter-spacing: 1px;
       color: #7dd3fc;
@@ -287,10 +288,7 @@
     .tab-btn:hover { background: rgba(125,211,252,0.06); }
     .tab-btn.active { color: #7dd3fc; border-color: #7dd3fc; background: rgba(125,211,252,0.10); }
 
-    /* --- Simulation toggle --- */
-    .sim-panel { padding: 16px 20px; }
-    .sim-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-    .sim-title { font-size: 14px; font-weight: 600; color: #d6e2f0; }
+    /* --- Simulation toggle (inside the Commissioning panel) --- */
     .sim-sub { font-size: 12px; color: #94a3b8; margin-top: 3px; }
     .sim-ctl { display: flex; align-items: center; gap: 12px; }
     .sim-state { font-family: "Consolas", monospace; font-size: 13px; font-weight: 700; color: #6b7280; min-width: 30px; text-align: right; }
@@ -301,6 +299,21 @@
     .slider::before { content: ""; position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px; background: #94a3b8; border-radius: 50%; transition: .2s; }
     .switch input:checked + .slider { background: #16a34a; }
     .switch input:checked + .slider::before { transform: translateX(24px); background: #fff; }
+    .switch input:disabled + .slider { opacity: .45; cursor: not-allowed; }
+
+    /* --- Commissioning panel --- */
+    .comm-panel { padding: 20px; }
+    .comm-section { margin-bottom: 18px; }
+    .comm-section:last-child { margin-bottom: 0; }
+    .comm-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .mode-switch { display: inline-flex; border: 1px solid #2a3b52; border-radius: 8px; overflow: hidden; }
+    .mode-btn { background: #0b0f14; color: #94a3b8; border: none; padding: 9px 22px; cursor: pointer; font-size: 13px; font-weight: 600; letter-spacing: .5px; }
+    .mode-btn:hover { color: #d6e2f0; }
+    .mode-btn.active { background: #1e3a5f; color: #bfdbfe; }
+    .comm-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid #1a2332; font-size: 14px; color: #d6e2f0; }
+    .comm-row:last-child { border-bottom: none; }
+    .led { width: 14px; height: 14px; border-radius: 50%; background: #374151; box-shadow: inset 0 0 3px rgba(0,0,0,.6); flex-shrink: 0; }
+    .led.on { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
 
     /* --- Charts view --- */
     #view-charts .panel { padding: 20px; }
@@ -338,16 +351,45 @@
 
   <div id="view-params">
 
-  <div class="panel sim-panel">
-    <div class="sim-row">
-      <div>
-        <div class="sim-title">Simulation Mode</div>
-        <div class="sim-sub">When ON, the PLC runs in simulation instead of real hardware.</div>
+  <div class="panel comm-panel">
+    <h2>Commissioning</h2>
+
+    <div class="comm-section">
+      <div class="comm-label">Operating Mode</div>
+      <div class="mode-switch">
+        <button class="mode-btn" id="modeManual" onclick="setMode(0)">MANUAL</button>
+        <button class="mode-btn" id="modeAuto"   onclick="setMode(1)">AUTOMATIC</button>
       </div>
-      <div class="sim-ctl">
-        <span class="sim-state" id="simState">—</span>
-        <label class="switch"><input type="checkbox" id="simToggle"><span class="slider"></span></label>
+    </div>
+
+    <div class="comm-section" id="simSection" hidden>
+      <div class="comm-label">Simulation</div>
+      <div class="comm-row">
+        <div>
+          <div>Simulation Active</div>
+          <div class="sim-sub">Run in simulation instead of real hardware.</div>
+        </div>
+        <div class="sim-ctl">
+          <span class="sim-state" id="simState">—</span>
+          <label class="switch"><input type="checkbox" id="simToggle"><span class="slider"></span></label>
+        </div>
       </div>
+    </div>
+
+    <div class="comm-section">
+      <div class="comm-label">Outputs</div>
+      <div class="comm-row"><span>Low Accumulator Release Valve</span>
+        <label class="switch"><input type="checkbox" id="outLowSolenoid" onchange="setOutput('lowSolenoid', this.checked)"><span class="slider"></span></label></div>
+      <div class="comm-row"><span>High Accumulator Release Valve</span>
+        <label class="switch"><input type="checkbox" id="outHighSolenoid" onchange="setOutput('highSolenoid', this.checked)"><span class="slider"></span></label></div>
+      <div class="comm-row"><span>Accumulator Switching Valve</span>
+        <label class="switch"><input type="checkbox" id="outSwitchingValve" onchange="setOutput('switchingValve', this.checked)"><span class="slider"></span></label></div>
+    </div>
+
+    <div class="comm-section">
+      <div class="comm-label">Digital Inputs</div>
+      <div class="comm-row"><span>Signal A</span><span class="led" id="inSignalA"></span></div>
+      <div class="comm-row"><span>Signal B</span><span class="led" id="inSignalB"></span></div>
     </div>
   </div>
 
@@ -523,16 +565,19 @@
     }
 
     try {
-      const res = await fetch(`${API}/api/params/${encodeURIComponent(name)}`, {
+      const res  = await fetch(`${API}/api/params/${encodeURIComponent(name)}`, {
         method:  "PUT",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ value })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        flash(fb, "Written", "ok");
+        // Display the value read straight back from the PLC (confirms it; reveals coercion).
+        const lv = document.getElementById(`lv-${name}`);
+        if (lv && "value" in data) lv.textContent = fmt(data.value);
+        flash(fb, ("value" in data) ? `✓ ${fmt(data.value)}` : "Written", "ok");
       } else {
-        const { error } = await res.json().catch(() => ({}));
-        flash(fb, error || "Write failed", "err");
+        flash(fb, data.error || "Write failed", "err");
       }
     } catch {
       flash(fb, "No connection", "err");
@@ -570,6 +615,7 @@
   const simToggle = document.getElementById("simToggle");
   const simState  = document.getElementById("simState");
   let simBusy = false;
+  let currentMode = null;              // 0 = MANUAL, 1 = AUTOMATIC (set by renderMode)
 
   function renderSim(on) {
     simToggle.checked = on;
@@ -577,33 +623,98 @@
     simState.className = "sim-state" + (on ? " on" : "");
   }
 
-  simToggle.addEventListener("change", async () => {
-    const value = simToggle.checked;
+  async function writeSimulation(value) {
     simBusy = true;                     // don't let a poll overwrite the switch mid-write
     renderSim(value);
     try {
       const res = await fetch(`${API}/api/simulation`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value })
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error();
+      if (typeof data.active === "boolean") renderSim(data.active);   // confirmed read-back
     } catch {
       renderSim(!value);                // revert on failure
     } finally {
       setTimeout(() => { simBusy = false; }, 1200);
     }
-  });
+  }
+
+  simToggle.addEventListener("change", () => writeSimulation(simToggle.checked));
 
   async function pollSimulation() {
     try {
       const res = await fetch(`${API}/api/simulation`);
       const d = await res.json();
-      if (res.ok && !simBusy && typeof d.active === "boolean") renderSim(d.active);
+      if (!res.ok || typeof d.active !== "boolean") return;
+      // MANUAL mode → simulation must be OFF; force it off if the PLC reports it on.
+      if (currentMode === 0 && d.active === true) { writeSimulation(false); return; }
+      if (!simBusy) renderSim(d.active);
+    } catch { /* connection state is reflected by poll() */ }
+  }
+
+  // ── Commissioning: mode + forceable outputs + read-only digital inputs ───────
+  let commBusy = false;
+
+  function renderMode(mode) {
+    currentMode = mode;
+    const auto = mode === 1;
+    document.getElementById("modeManual").classList.toggle("active", mode === 0);
+    document.getElementById("modeAuto").classList.toggle("active", auto);
+    document.getElementById("simSection").hidden = !auto;              // Simulation only in AUTOMATIC
+    ["outLowSolenoid", "outHighSolenoid", "outSwitchingValve"].forEach( // outputs locked in AUTOMATIC
+      id => { document.getElementById(id).disabled = auto; });
+  }
+  function renderCommInputs(d) {
+    document.getElementById("inSignalA").className = "led" + (d.signalA ? " on" : "");
+    document.getElementById("inSignalB").className = "led" + (d.signalB ? " on" : "");
+  }
+  function renderCommOutputs(d) {
+    document.getElementById("outLowSolenoid").checked    = d.lowSolenoid;
+    document.getElementById("outHighSolenoid").checked   = d.highSolenoid;
+    document.getElementById("outSwitchingValve").checked = d.switchingValve;
+  }
+
+  async function setMode(mode) {
+    commBusy = true; renderMode(mode);
+    if (mode === 0) writeSimulation(false);          // MANUAL → force simulation off
+    try {
+      const r = await fetch(`${API}/api/mode`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: mode }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error();
+      if (typeof data.mode === "number") renderMode(data.mode);   // confirmed read-back
+    }
+    catch { /* next poll corrects the highlight */ }
+    finally { setTimeout(() => { commBusy = false; }, 1000); }
+  }
+  async function setOutput(name, value) {
+    commBusy = true;
+    try {
+      const r = await fetch(`${API}/api/output/${name}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value }) });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error();
+      const el = { lowSolenoid: "outLowSolenoid", highSolenoid: "outHighSolenoid", switchingValve: "outSwitchingValve" }[name];
+      if (el && typeof data.value === "boolean") document.getElementById(el).checked = data.value;   // confirmed read-back
+    }
+    catch { /* next poll corrects the toggle */ }
+    finally { setTimeout(() => { commBusy = false; }, 1000); }
+  }
+
+  async function pollCommissioning() {
+    try {
+      const res = await fetch(`${API}/api/commissioning`);
+      const d = await res.json();
+      if (!res.ok) throw new Error();
+      renderCommInputs(d);                                   // inputs always live
+      if (!commBusy) { renderMode(d.mode); renderCommOutputs(d); }
     } catch { /* connection state is reflected by poll() */ }
   }
 
   poll();
   pollSimulation();
+  pollCommissioning();
   setInterval(() => { poll(); pollSimulation(); }, POLL_MS);
+  setInterval(pollCommissioning, 1000);
 
 
 

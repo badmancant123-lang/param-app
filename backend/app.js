@@ -274,7 +274,9 @@ app.put("/api/params/:name", async (req, res) => {
       value: { value: { dataType, value: coerce(req.body.value, dataType) } }
     });
 
-    res.json({ ok: true });
+    // Read the value straight back so the client can verify what the PLC actually stored.
+    const dv = await session.read({ nodeId, attributeId: AttributeIds.Value });
+    res.json({ ok: true, value: dv.value?.value ?? null, dataType });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -306,7 +308,79 @@ app.put("/api/simulation", async (req, res) => {
       attributeId: AttributeIds.Value,
       value: { value: { dataType: DataType.Boolean, value: Boolean(req.body.value) } }
     });
-    res.json({ ok: true });
+    const dv = await session.read({ nodeId: simNodeId(), attributeId: AttributeIds.Value });
+    res.json({ ok: true, active: dv.value?.value === true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Commissioning: operating mode (_currentMode Int32 enum: 0=MANUAL, 1=AUTOMATIC),
+// forceable Boolean outputs, and read-only Boolean digital inputs. All live under MAIN.
+const OUTPUT_PATHS = {
+  lowSolenoid:    "lowAccumulator/_solenoidSwitch",
+  highSolenoid:   "highAccumulator/_solenoidSwitch",
+  switchingValve: "frequencyControl/_highAccumulatorActive"
+};
+
+app.get("/api/commissioning", async (_req, res) => {
+  try {
+    if (!session) return res.status(503).json({ error: "OPC UA not connected" });
+    const MAIN = FREQ_BASE.replace(/\/[^/]+$/, "");
+    const ids = [
+      `${NS_PREFIX};s=${MAIN}/_currentMode`,                     // 0  Int32 enum
+      `${NS_PREFIX};s=${MAIN}/_signalA`,                         // 1  Bool input
+      `${NS_PREFIX};s=${MAIN}/_signalB`,                         // 2  Bool input
+      `${NS_PREFIX};s=${MAIN}/${OUTPUT_PATHS.lowSolenoid}`,      // 3  Bool output
+      `${NS_PREFIX};s=${MAIN}/${OUTPUT_PATHS.highSolenoid}`,     // 4  Bool output
+      `${NS_PREFIX};s=${MAIN}/${OUTPUT_PATHS.switchingValve}`    // 5  Bool output
+    ];
+    const dv = await session.read(ids.map(nodeId => ({ nodeId, attributeId: AttributeIds.Value })));
+    const v = i => dv[i].value?.value ?? null;
+    res.json({
+      mode:           v(0),                 // 0 = MANUAL, 1 = AUTOMATIC
+      signalA:        v(1) === true,
+      signalB:        v(2) === true,
+      lowSolenoid:    v(3) === true,
+      highSolenoid:   v(4) === true,
+      switchingValve: v(5) === true
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/mode", async (req, res) => {
+  try {
+    if (!session) return res.status(503).json({ error: "OPC UA not connected" });
+    const MAIN = FREQ_BASE.replace(/\/[^/]+$/, "");
+    const nodeId = `${NS_PREFIX};s=${MAIN}/_currentMode`;
+    await session.write({
+      nodeId,
+      attributeId: AttributeIds.Value,
+      value: { value: { dataType: DataType.Int32, value: Math.round(Number(req.body.value)) } }
+    });
+    const dv = await session.read({ nodeId, attributeId: AttributeIds.Value });
+    res.json({ ok: true, mode: dv.value?.value ?? null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/output/:name", async (req, res) => {
+  try {
+    if (!session) return res.status(503).json({ error: "OPC UA not connected" });
+    const path = OUTPUT_PATHS[req.params.name];
+    if (!path) return res.status(404).json({ error: `Unknown output "${req.params.name}"` });
+    const MAIN = FREQ_BASE.replace(/\/[^/]+$/, "");
+    const nodeId = `${NS_PREFIX};s=${MAIN}/${path}`;
+    await session.write({
+      nodeId,
+      attributeId: AttributeIds.Value,
+      value: { value: { dataType: DataType.Boolean, value: Boolean(req.body.value) } }
+    });
+    const dv = await session.read({ nodeId, attributeId: AttributeIds.Value });
+    res.json({ ok: true, value: dv.value?.value === true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
