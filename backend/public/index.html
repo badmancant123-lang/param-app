@@ -50,6 +50,14 @@
     .dot.connected    { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
     .dot.disconnected { background: #ef4444; }
 
+    /* --- Always-visible encoder readout bar --- */
+    .encoder-bar { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; padding: 11px 24px; background: #0d1520; border-bottom: 1px solid #1f2a3a; }
+    .enc-title { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #7dd3fc; font-weight: 600; }
+    .enc-metric { display: flex; align-items: baseline; gap: 8px; }
+    .enc-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; }
+    .enc-val { font-family: "Consolas", monospace; font-size: 18px; font-weight: 700; color: #f0f9ff; }
+    .enc-unit { font-size: 11px; color: #6b7280; }
+
     .container {
       padding: 24px;
       max-width: 1100px;
@@ -347,6 +355,14 @@
   </div>
 </header>
 
+<div class="encoder-bar">
+  <span class="enc-title">Encoder</span>
+  <div class="enc-metric"><span class="enc-lbl">Count</span><span class="enc-val" id="encCount">—</span></div>
+  <div class="enc-metric"><span class="enc-lbl">Frequency</span><span class="enc-val" id="encFreq">—</span><span class="enc-unit">Hz</span></div>
+  <div class="enc-metric"><span class="enc-lbl">Angular Vel.</span><span class="enc-val" id="encAngVel">—</span><span class="enc-unit">°/s</span></div>
+  <div class="enc-metric"><span class="enc-lbl">Sweep Angle</span><span class="enc-val" id="encSweep">—</span><span class="enc-unit">°</span></div>
+</div>
+
 <div class="container">
 
   <div id="view-params">
@@ -428,6 +444,11 @@
             <label><input type="checkbox" name="measurement" value="LowAccumulator Pressure"> LowAccumulator Pressure</label>
             <label><input type="checkbox" name="measurement" value="LowAcc Pressure Release"> LowAcc Pressure Release</label>
             <label><input type="checkbox" name="measurement" value="Frequency"> Frequency</label>
+            <label><input type="checkbox" name="measurement" value="EncoderCount"> EncoderCount</label>
+            <label><input type="checkbox" name="measurement" value="EncoderFrequency"> EncoderFrequency</label>
+            <label><input type="checkbox" name="measurement" value="EncoderSweepAngle"> EncoderSweepAngle</label>
+            <label><input type="checkbox" name="measurement" value="EncoderAngularVelocity"> EncoderAngularVelocity</label>
+
         </div>
       </div>
 
@@ -944,12 +965,24 @@
       read: m => ({ v: m.highAcc.value, hi: m.highAcc.hi, lo: m.highAcc.lo, b: m.highAcc.valve }), status: valveStatus })
   ];
 
+  function renderEncoder(e) {
+    const set = (id, v, digits) => {
+      document.getElementById(id).textContent =
+        (typeof v === "number") ? (digits != null ? v.toFixed(digits) : String(v)) : "—";
+    };
+    set("encCount",  e.count, 0);
+    set("encFreq",   e.frequency, 3);
+    set("encAngVel", e.angularVelocity, 2);
+    set("encSweep",  e.sweepAngle, 2);
+  }
+
   async function pollMonitor() {
     try {
       const r = await fetch(`${API}/api/monitor`);
       const m = await r.json();
       if (!r.ok) throw new Error(m.error);
       charts.forEach(c => c.update(m));        // keeps collecting even while the Params tab is shown
+      if (m.encoder) renderEncoder(m.encoder); // always-visible encoder bar
     } catch { /* OPC UA state is reflected by the params poll() */ }
   }
   (async function monLoop() { await pollMonitor(); setTimeout(monLoop, MON_POLL_MS); })();

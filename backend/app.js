@@ -408,7 +408,11 @@ app.get("/api/monitor", async (_req, res) => {
       `${NS_PREFIX};s=${MAIN}/highAccumulator/_pressure`,        // 8
       `${ui}/_highAccHighThresh`,                                // 9
       `${ui}/_highAccLowThresh`,                                 // 10
-      `${NS_PREFIX};s=${MAIN}/highAccumulator/_solenoidSwitch`   // 11
+      `${NS_PREFIX};s=${MAIN}/highAccumulator/_solenoidSwitch`,  // 11
+      `${NS_PREFIX};s=${MAIN}/_cnt`,                             // 12  encoder count
+      `${NS_PREFIX};s=${MAIN}/encoder/_calcFreq`,                // 13  encoder frequency
+      `${NS_PREFIX};s=${MAIN}/encoder/_angularVelocity`,         // 14  angular velocity (°/s)
+      `${NS_PREFIX};s=${MAIN}/encoder/_sweepAngle`               // 15  sweep angle (°)
     ];
     const dv = await session.read(ids.map(nodeId => ({ nodeId, attributeId: AttributeIds.Value })));
     const v = i => dv[i].value?.value ?? null;
@@ -416,7 +420,8 @@ app.get("/api/monitor", async (_req, res) => {
     res.json({
       frequency: { value: v(0), active: v(1) === true, hi: v(2), lo: v(3)  },
       lowAcc:    { value: v(4), hi: v(5),  lo: v(6),  valve: v(7)  === true },
-      highAcc:   { value: v(8), hi: v(9),  lo: v(10), valve: v(11) === true }
+      highAcc:   { value: v(8), hi: v(9),  lo: v(10), valve: v(11) === true },
+      encoder:   { count: v(12), frequency: v(13), angularVelocity: v(14), sweepAngle: v(15) }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
